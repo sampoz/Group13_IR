@@ -17,12 +17,10 @@ public class LuceneSearchApp {
 
     private Directory directory;
 
-    private static void addDoc(IndexWriter writer, String title, String description, Date pubdate) throws IOException {
+    private static void addDoc(IndexWriter writer, String title, String abstr) throws IOException {
         Document doc = new Document();
         doc.add(new TextField("title", title, Field.Store.YES));
-        doc.add(new TextField("description", description, Field.Store.YES));
-        doc.add(new IntField("pubdate", new Integer(DateTools.dateToString(pubdate, DateTools.Resolution.DAY)),
-                Field.Store.YES));
+        doc.add(new TextField("abstract", abstr, Field.Store.YES));
         writer.addDocument(doc);
     }
 
@@ -39,15 +37,16 @@ public class LuceneSearchApp {
 
 	}
 
-	public void index(List<RssFeedDocument> docs) {
+	public void index(List<DocumentInCollection> docs) {
         this.directory = new RAMDirectory();
         Analyzer analyzer = new StandardAnalyzer(Version.LUCENE_42);
         IndexWriterConfig config = new IndexWriterConfig(Version.LUCENE_42, analyzer);
 
         try {
             IndexWriter writer = new IndexWriter(directory, config);
-            for (RssFeedDocument document : docs) {
-                addDoc(writer, document.getTitle(), document.getDescription(), document.getPubDate());
+            for (DocumentInCollection document : docs) {
+                System.out.println(document);
+                addDoc(writer, document.getTitle(), document.getAbstractText());
             }
             writer.close();
         }
@@ -148,65 +147,16 @@ public class LuceneSearchApp {
 		if (args.length > 0) {
 			LuceneSearchApp engine = new LuceneSearchApp();
 			
-			RssFeedParser parser = new RssFeedParser();
+			DocumentCollectionParser parser = new DocumentCollectionParser();
 			parser.parse(args[0]);
-			List<RssFeedDocument> docs = parser.getDocuments();
+			List<DocumentInCollection> docs = parser.getDocuments();
 			
 			engine.index(docs);
 
-			List<String> inTitle;
-			List<String> notInTitle;
-			List<String> inDescription;
-			List<String> notInDescription;
-			List<String> results;
-			
-			// 1) search documents with words "kim" and "korea" in the title
-			inTitle = new LinkedList<String>();
-			inTitle.add("kim");
-			inTitle.add("korea");
-			results = engine.search(inTitle, null, null, null, null, null);
-			engine.printResults(results);
-			
-			// 2) search documents with word "kim" in the title and no word "korea" in the description
-			inTitle = new LinkedList<String>();
-			notInDescription = new LinkedList<String>();
-			inTitle.add("kim");
-			notInDescription.add("korea");
-			results = engine.search(inTitle, null, null, notInDescription, null, null);
-			engine.printResults(results);
-
-			// 3) search documents with word "us" in the title, no word "dawn" in the title and word "" and ""
-			// in the description
-			inTitle = new LinkedList<String>();
-			inTitle.add("us");
-			notInTitle = new LinkedList<String>();
-			notInTitle.add("dawn");
-			inDescription = new LinkedList<String>();
-			inDescription.add("american");
-			inDescription.add("confession");
-			results = engine.search(inTitle, notInTitle, inDescription, null, null, null);
-			engine.printResults(results);
-			
-			// 4) search documents whose publication date is 2011-12-18
-			results = engine.search(null, null, null, null, "2011-12-18", "2011-12-18");
-			engine.printResults(results);
-			
-			// 5) search documents with word "video" in the title whose publication date is 2000-01-01 or later
-			inTitle = new LinkedList<String>();
-			inTitle.add("video");
-			results = engine.search(inTitle, null, null, null, "2000-01-01", null);
-			engine.printResults(results);
-			
-			// 6) search documents with no word "canada" or "iraq" or "israel" in the description whose publication
-			// date is 2011-12-18 or earlier
-			notInDescription = new LinkedList<String>();
-			notInDescription.add("canada");
-			notInDescription.add("iraq");
-			notInDescription.add("israel");
-			results = engine.search(null, null, null, notInDescription, null, "2011-12-18");
-			engine.printResults(results);
+			//results = engine.search(null, null, null, notInDescription, null, "2011-12-18");
+			//engine.printResults(results);
 		}
 		else
-			System.out.println("ERROR: the path of a RSS Feed file has to be passed as a command line argument.");
+			System.out.println("ERROR: the path of a XML document has to be passed as a command line argument.");
 	}
 }

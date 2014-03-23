@@ -5,7 +5,6 @@
  * Jouni Tuominen <jouni.tuominen@aalto.fi>
  * Matias Frosterus <matias.frosterus@aalto.fi>
  */
-package ir_course;
 
 import java.io.IOException;
 import java.util.LinkedList;
