@@ -45,8 +45,10 @@ public class LuceneSearchApp {
         try {
             IndexWriter writer = new IndexWriter(directory, config);
             for (DocumentInCollection document : docs) {
-                System.out.println(document);
-                addDoc(writer, document.getTitle(), document.getAbstractText());
+                // Add only the documents relevant to our subject to our index
+                if (document.getSearchTaskNumber() == 18) {
+                    addDoc(writer, document.getTitle(), document.getAbstractText());
+                }
             }
             writer.close();
         }
