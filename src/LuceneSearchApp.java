@@ -2,18 +2,13 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.*;
 import org.apache.lucene.index.*;
 import org.apache.lucene.search.*;
-import org.apache.lucene.search.similarities.TFIDFSimilarity;
 import org.apache.lucene.store.RAMDirectory;
-import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.Version;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.analysis.Analyzer;
 
 import java.io.IOException;
-import java.util.Collections;
-import java.util.Date;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 
 
 public class LuceneSearchApp {
@@ -60,10 +55,10 @@ public class LuceneSearchApp {
         }
 	}
 
-	public List<String> search(List<String> inTitle, List<String> notInTitle, List<String> inDescription,
-                               List<String> notInDescription, String startDate, String endDate) {
+	public List<String> search(List<String> inTitle, List<String> notInTitle, List<String> inAbstract,
+                               List<String> notInAbstract) {
 		
-		printQuery(inTitle, notInTitle, inDescription, notInDescription, startDate, endDate);
+		printQuery(inTitle, notInTitle, inAbstract, notInAbstract);
 
 		List<String> results = new LinkedList<String>();
 
@@ -72,20 +67,18 @@ public class LuceneSearchApp {
             DirectoryReader reader = DirectoryReader.open(directory);
             IndexSearcher searcher = new IndexSearcher(reader);
 
+            // Set the searcher to use our VSMSimilarity
+            VSMSimilarity vsmSimilarity = new VSMSimilarity();
+            searcher.setSimilarity(vsmSimilarity);
+
             // Create the master query
             BooleanQuery masterQuery = new BooleanQuery();
 
             // Parse the term queries
             parseTermQuery("title", inTitle, masterQuery, BooleanClause.Occur.MUST);
             parseTermQuery("title", notInTitle, masterQuery, BooleanClause.Occur.MUST_NOT);
-            parseTermQuery("description", inDescription, masterQuery, BooleanClause.Occur.MUST);
-            parseTermQuery("description", notInDescription, masterQuery, BooleanClause.Occur.MUST_NOT);
-
-            // Parse the date range query
-            Integer start = (startDate != null ? new Integer(startDate.replace("-", "")) : null);
-            Integer end = (endDate != null ? new Integer(endDate.replace("-", "")) : null);
-            NumericRangeQuery nrq = NumericRangeQuery.newIntRange("pubdate", start, end, true, true);
-            masterQuery.add(nrq, BooleanClause.Occur.MUST);
+            parseTermQuery("abstract", inAbstract, masterQuery, BooleanClause.Occur.MUST);
+            parseTermQuery("abstract", notInAbstract, masterQuery, BooleanClause.Occur.MUST_NOT);
 
             // Search the index
             TopDocs docs = searcher.search(masterQuery, Integer.MAX_VALUE);
@@ -104,38 +97,27 @@ public class LuceneSearchApp {
 		return results;
 	}
 	
-	public void printQuery(List<String> inTitle, List<String> notInTitle, List<String> inDescription,
-                           List<String> notInDescription, String startDate, String endDate) {
+	public void printQuery(List<String> inTitle, List<String> notInTitle, List<String> inAbstract,
+                           List<String> notInAbstract) {
 		System.out.print("Search (");
 		if (inTitle != null) {
-			System.out.print("in title: "+inTitle);
-			if (notInTitle != null || inDescription != null || notInDescription != null || startDate != null
-                    || endDate != null)
+			System.out.print("in title: " + inTitle);
+			if (notInTitle != null || inAbstract != null || notInAbstract != null)
 				System.out.print("; ");
 		}
 		if (notInTitle != null) {
-			System.out.print("not in title: "+notInTitle);
-			if (inDescription != null || notInDescription != null || startDate != null || endDate != null)
+			System.out.print("not in title: " + notInTitle);
+			if (inAbstract != null || notInAbstract != null)
 				System.out.print("; ");
 		}
-		if (inDescription != null) {
-			System.out.print("in description: "+inDescription);
-			if (notInDescription != null || startDate != null || endDate != null)
+		if (inAbstract != null) {
+			System.out.print("in abstract: " + inAbstract);
+			if (notInAbstract != null)
 				System.out.print("; ");
 		}
-		if (notInDescription != null) {
-			System.out.print("not in description: "+notInDescription);
-			if (startDate != null || endDate != null)
-				System.out.print("; ");
+		if (notInAbstract != null) {
+			System.out.print("not in abstract: " + notInAbstract);
 		}
-		if (startDate != null) {
-			System.out.print("startDate: "+startDate);
-			if (endDate != null)
-				System.out.print("; ");
-		}
-		if (endDate != null)
-			System.out.print("endDate: "+endDate);
-		System.out.println("):");
 	}
 	
 	public void printResults(List<String> results) {
@@ -158,8 +140,8 @@ public class LuceneSearchApp {
 			
 			engine.index(docs);
 
-			//results = engine.search(null, null, null, notInDescription, null, "2011-12-18");
-			//engine.printResults(results);
+		    List<String> results = engine.search(Arrays.asList("game"), null, null, null);
+			engine.printResults(results);
 		}
 		else
 			System.out.println("ERROR: the path of a XML document has to be passed as a command line argument.");
