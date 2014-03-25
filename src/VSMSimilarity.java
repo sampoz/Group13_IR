@@ -2,7 +2,9 @@ import org.apache.lucene.search.similarities.DefaultSimilarity;
 
 public class VSMSimilarity extends DefaultSimilarity {
 
-    public final boolean sublinear = true;
+    private final boolean sublinear = true;
+
+    private static final long serialVersionUID = 1337L;
 
     public VSMSimilarity() {
 
