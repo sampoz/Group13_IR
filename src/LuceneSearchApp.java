@@ -115,9 +115,10 @@ public class LuceneSearchApp {
             try {
                 IndexReader reader = DirectoryReader.open(directory);
 
-                // Get the relevant documents for this query and print the search precision
+                // Get the relevant documents for this query and print the search precision and recall
                 List<DocumentInCollection> relevant = getRelevantDocumentsForQuery(docs, query);
                 System.out.println("Precision: " + getPrecision(relevant, retrieved, reader));
+                System.out.println("Recall: " + getRecall(relevant, retrieved, reader));
 
                 // Print the titles and individual scores of the retrieved documents
                 List<Document> retrievedDocuments = new ArrayList<Document>();
@@ -145,8 +146,7 @@ public class LuceneSearchApp {
         return relevant;
     }
 
-    public float getPrecision(List<DocumentInCollection> relevant, TopDocs retrieved, IndexReader reader) {
-
+    public int getHits(List<DocumentInCollection> relevant, TopDocs retrieved, IndexReader reader) {
         int hits = 0;
 
         try {
@@ -161,7 +161,17 @@ public class LuceneSearchApp {
             System.out.println("Caught IOException while reading the index in getPrecision : " + e.getCause());
         }
 
+        return hits;
+    }
+
+    public float getPrecision(List<DocumentInCollection> relevant, TopDocs retrieved, IndexReader reader) {
+        int hits = getHits(relevant, retrieved, reader);
         return (((float)hits) / (retrieved.totalHits));
+    }
+
+    public float getRecall(List<DocumentInCollection> relevant, TopDocs retrieved, IndexReader reader) {
+        int hits = getHits(relevant, retrieved, reader);
+        return (((float)hits) / (relevant.size()));
     }
 
     public static void main(String[] args) {
