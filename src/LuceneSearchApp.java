@@ -6,6 +6,7 @@ import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.Version;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.analysis.Analyzer;
+import org.tartarus.snowball.ext.PorterStemmer;
 
 import java.io.IOException;
 import java.util.*;
@@ -52,6 +53,17 @@ public class LuceneSearchApp {
             System.out.println("Caught IOException while creating the index : " + e.getCause());
         }
 	}
+	
+	public List<String> stemWords(List<String> words){
+        PorterStemmer stemmer = new PorterStemmer();
+        List<String> stemmed=new ArrayList<String>();
+        for(String word : words){
+            stemmer.setCurrent(word);
+            stemmer.stem();
+            stemmed.add(stemmer.getCurrent());
+        }
+        return stemmed;
+    }
 
 	public List<String> search(String query) {
 		
@@ -59,6 +71,7 @@ public class LuceneSearchApp {
 
 		List<String> results = new LinkedList<String>();
         List<String> queryTermList = Arrays.asList(query.split(" "));
+        queryTermList=stemWords(queryTermList);
 
         try {
             // Open the directory and create a searcher to search the index
