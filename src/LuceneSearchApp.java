@@ -41,10 +41,7 @@ public class LuceneSearchApp {
         try {
             IndexWriter writer = new IndexWriter(directory, config);
             for (DocumentInCollection document : docs) {
-                // Add only the documents relevant to our subject to our index
-                if (document.getSearchTaskNumber() == 18) {
-                    addDoc(writer, document.getTitle(), document.getAbstractText());
-                }
+                addDoc(writer, document.getTitle(), document.getAbstractText());
             }
             writer.close();
         }
@@ -73,8 +70,8 @@ public class LuceneSearchApp {
             BooleanQuery masterQuery = new BooleanQuery();
 
             // Parse the term queries
-            parseTermQuery("title", queryTermList, masterQuery, BooleanClause.Occur.MUST);
-            parseTermQuery("abstract", queryTermList, masterQuery, BooleanClause.Occur.MUST);
+            parseTermQuery("title", queryTermList, masterQuery, BooleanClause.Occur.SHOULD);
+            parseTermQuery("abstract", queryTermList, masterQuery, BooleanClause.Occur.SHOULD);
 
             // Search the index
             TopDocs docs = searcher.search(masterQuery, Integer.MAX_VALUE);
@@ -99,7 +96,7 @@ public class LuceneSearchApp {
 	
 	public void printResults(List<String> results) {
 		if (results.size() > 0) {
-			Collections.sort(results);
+			//Collections.sort(results);
 			for (int i=0; i<results.size(); i++)
 				System.out.println(" " + (i+1) + ". " + results.get(i));
 		}
@@ -108,29 +105,59 @@ public class LuceneSearchApp {
         }
 	}
 
-    public List<DocumentInCollection> getRelevantDocumentsForQuery(
+    public static List<DocumentInCollection> getRelevantDocumentsForQuery(
             List<DocumentInCollection> docs, String query) {
         List<DocumentInCollection> relevant = new ArrayList<DocumentInCollection>();
         for (DocumentInCollection doc : docs) {
-            if (doc.getQuery() == query && doc.isRelevant()) {
+            if (doc.isRelevant() && (doc.getQuery().equals(query))) {
                 relevant.add(doc);
             }
         }
         return relevant;
     }
 
+    public static float getPrecision(
+            List<DocumentInCollection> docs, List<String> retrieved, String query) {
+
+        List<DocumentInCollection> result = new ArrayList<DocumentInCollection>();
+        List<DocumentInCollection> relevant = getRelevantDocumentsForQuery(docs, query);
+
+        for (String title : retrieved) {
+            for (DocumentInCollection doc : relevant) {
+                if (doc.getTitle().equals(title)) {
+                    result.add(doc);
+                }
+            }
+        }
+
+        return ((float)result.size()) / ((float)retrieved.size());
+    }
+
 	public static void main(String[] args) {
 		if (args.length > 0) {
 			LuceneSearchApp engine = new LuceneSearchApp();
-			
+
+            // Parse the documents from the XML file
 			DocumentCollectionParser parser = new DocumentCollectionParser();
 			parser.parse(args[0]);
 			List<DocumentInCollection> docs = parser.getDocuments();
-			
+
+            // Select only the documents relevant to our subject
+            for (Iterator<DocumentInCollection> i = docs.listIterator(); i.hasNext(); ) {
+                DocumentInCollection doc = (DocumentInCollection) i.next();
+                if (doc.getSearchTaskNumber() != 18) {
+                    i.remove();
+                }
+            }
+
+            // Index the relevant documents
 			engine.index(docs);
 
-		    List<String> results = engine.search("game");
-			engine.printResults(results);
+            String query = "social multiplayer game";
+
+		    List<String> retrieved = engine.search(query);
+            System.out.println("Precision: " + getPrecision(docs, retrieved, query));
+            engine.printResults(retrieved);
 		}
 		else {
             System.out.println("ERROR: the path of a XML document has to be passed as a command line argument.");
