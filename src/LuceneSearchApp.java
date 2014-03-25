@@ -107,18 +107,19 @@ public class LuceneSearchApp {
     }
 
     public void analyzeResults(List<DocumentInCollection> docs, TopDocs retrieved, String query) {
+        // Print the number of total hits and maximum score
         System.out.println("Total hits: " + retrieved.totalHits);
         System.out.println("Maximum score: " + retrieved.getMaxScore());
 
         if (retrieved.totalHits > 0) {
-
-            List<DocumentInCollection> relevant = getRelevantDocumentsForQuery(docs, query);
-
             try {
                 IndexReader reader = DirectoryReader.open(directory);
 
-                System.out.println("Precision: " + getPrecision(relevant, retrieved.scoreDocs, reader));
+                // Get the relevant documents for this query and print the search precision
+                List<DocumentInCollection> relevant = getRelevantDocumentsForQuery(docs, query);
+                System.out.println("Precision: " + getPrecision(relevant, retrieved, reader));
 
+                // Print the titles and individual scores of the retrieved documents
                 List<Document> retrievedDocuments = new ArrayList<Document>();
                 System.out.println("Scores and titles of the retrieved documents:");
                 for (ScoreDoc sdoc : retrieved.scoreDocs) {
@@ -144,12 +145,12 @@ public class LuceneSearchApp {
         return relevant;
     }
 
-    public float getPrecision(List<DocumentInCollection> relevant, ScoreDoc[] retrieved, IndexReader reader) {
+    public float getPrecision(List<DocumentInCollection> relevant, TopDocs retrieved, IndexReader reader) {
 
         int hits = 0;
 
         try {
-            for (ScoreDoc sdoc : retrieved) {
+            for (ScoreDoc sdoc : retrieved.scoreDocs) {
                 for (DocumentInCollection doc : relevant) {
                     if (doc.getId() == Integer.parseInt(reader.document(sdoc.doc).get("id"))) {
                         hits++;
@@ -160,7 +161,7 @@ public class LuceneSearchApp {
             System.out.println("Caught IOException while reading the index in getPrecision : " + e.getCause());
         }
 
-        return (((float)hits) / (retrieved.length));
+        return (((float)hits) / (retrieved.totalHits));
     }
 
     public static void main(String[] args) {
@@ -180,16 +181,17 @@ public class LuceneSearchApp {
                 }
             }
 
-            // Index the relevant documents
+            // 4 steps to victory
+            // 1. Index the relevant documents
             engine.index(docs);
 
-            // Form the query
+            // 2. Form the query
             String query = "social multiplayer game";
 
-            // Search the index for the documents
+            // 3. Search the index for the documents
             TopDocs retrieved = engine.search(query);
 
-            // Analyze the results
+            // 4. Analyze the results
             engine.analyzeResults(docs, retrieved, query);
         }
         else {
