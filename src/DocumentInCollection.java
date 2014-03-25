@@ -6,17 +6,21 @@
 
 public class DocumentInCollection {
 
-	private String title;
+	private static int documentIndex = 0;
+
+    private String title;
 	private String abstractText;
 	private int searchTaskNumber;
 	private String query;
 	private boolean relevant;
+    private int id;
 	
 	public DocumentInCollection() {
 		this(null, null, 0, null, false);
 	}
 	
 	public DocumentInCollection(String title, String abstractText, int searchTaskNumber, String query, boolean relevant) {
+        this.id = documentIndex++;
 		this.title = title;
 		this.abstractText = abstractText;
 		this.searchTaskNumber = searchTaskNumber;
@@ -67,4 +71,19 @@ public class DocumentInCollection {
 	public String toString() {
 		return "Title: "+title+"\n abstract: "+abstractText+"\n search task number: "+searchTaskNumber+"\n query: "+query+"\n relevant: "+relevant;
 	}
+
+    public int getId() { return id; }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        }
+        if (obj == null || obj.getClass() != this.getClass()) {
+            return false;
+        }
+
+        DocumentInCollection other = (DocumentInCollection) obj;
+        return this.id == other.id;
+    }
 }
