@@ -119,6 +119,7 @@ public class LuceneSearchApp {
                 List<DocumentInCollection> relevant = getRelevantDocumentsForQuery(docs, query);
                 System.out.println("Precision: " + getPrecision(relevant, retrieved, reader));
                 System.out.println("Recall: " + getRecall(relevant, retrieved, reader));
+                System.out.println("F1 score: " + getF1score(relevant, retrieved, reader));
 
                 // Print the titles and individual scores of the retrieved documents
                 List<Document> retrievedDocuments = new ArrayList<Document>();
@@ -172,6 +173,12 @@ public class LuceneSearchApp {
     public float getRecall(List<DocumentInCollection> relevant, TopDocs retrieved, IndexReader reader) {
         int hits = getHits(relevant, retrieved, reader);
         return (((float)hits) / (relevant.size()));
+    }
+
+    public float getF1score(List<DocumentInCollection> relevant, TopDocs retrieved, IndexReader reader) {
+        float precision = getPrecision(relevant, retrieved, reader);
+        float recall = getRecall(relevant, retrieved, reader);
+        return (2*precision*recall) / (precision + recall);
     }
 
     public static void main(String[] args) {
