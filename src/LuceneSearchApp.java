@@ -24,10 +24,8 @@ public class LuceneSearchApp {
 
     private static void parseTermQuery(String field, List<String> terms, BooleanQuery masterQuery,
                                        BooleanClause.Occur modifier) {
-        if (terms != null && !terms.isEmpty()) {
-            for (String term : terms) {
-                masterQuery.add(new TermQuery(new Term(field, term)), modifier);
-            }
+        for (String term : terms) {
+            masterQuery.add(new TermQuery(new Term(field, term)), modifier);
         }
     }
 
@@ -55,12 +53,12 @@ public class LuceneSearchApp {
         }
 	}
 
-	public List<String> search(List<String> inTitle, List<String> notInTitle, List<String> inAbstract,
-                               List<String> notInAbstract) {
+	public List<String> search(String query) {
 		
-		printQuery(inTitle, notInTitle, inAbstract, notInAbstract);
+		printQuery(query);
 
 		List<String> results = new LinkedList<String>();
+        List<String> queryTermList = Arrays.asList(query.split(" "));
 
         try {
             // Open the directory and create a searcher to search the index
@@ -75,10 +73,8 @@ public class LuceneSearchApp {
             BooleanQuery masterQuery = new BooleanQuery();
 
             // Parse the term queries
-            parseTermQuery("title", inTitle, masterQuery, BooleanClause.Occur.MUST);
-            parseTermQuery("title", notInTitle, masterQuery, BooleanClause.Occur.MUST_NOT);
-            parseTermQuery("abstract", inAbstract, masterQuery, BooleanClause.Occur.MUST);
-            parseTermQuery("abstract", notInAbstract, masterQuery, BooleanClause.Occur.MUST_NOT);
+            parseTermQuery("title", queryTermList, masterQuery, BooleanClause.Occur.MUST);
+            parseTermQuery("abstract", queryTermList, masterQuery, BooleanClause.Occur.MUST);
 
             // Search the index
             TopDocs docs = searcher.search(masterQuery, Integer.MAX_VALUE);
@@ -97,27 +93,8 @@ public class LuceneSearchApp {
 		return results;
 	}
 	
-	public void printQuery(List<String> inTitle, List<String> notInTitle, List<String> inAbstract,
-                           List<String> notInAbstract) {
-		System.out.print("Search (");
-		if (inTitle != null) {
-			System.out.print("in title: " + inTitle);
-			if (notInTitle != null || inAbstract != null || notInAbstract != null)
-				System.out.print("; ");
-		}
-		if (notInTitle != null) {
-			System.out.print("not in title: " + notInTitle);
-			if (inAbstract != null || notInAbstract != null)
-				System.out.print("; ");
-		}
-		if (inAbstract != null) {
-			System.out.print("in abstract: " + inAbstract);
-			if (notInAbstract != null)
-				System.out.print("; ");
-		}
-		if (notInAbstract != null) {
-			System.out.print("not in abstract: " + notInAbstract);
-		}
+	public void printQuery(String query) {
+		System.out.println("Search (in title or abstract): " + query);
 	}
 	
 	public void printResults(List<String> results) {
@@ -126,10 +103,22 @@ public class LuceneSearchApp {
 			for (int i=0; i<results.size(); i++)
 				System.out.println(" " + (i+1) + ". " + results.get(i));
 		}
-		else
-			System.out.println(" no results");
+		else {
+            System.out.println(" no results");
+        }
 	}
-	
+
+    public List<DocumentInCollection> getRelevantDocumentsForQuery(
+            List<DocumentInCollection> docs, String query) {
+        List<DocumentInCollection> relevant = new ArrayList<DocumentInCollection>();
+        for (DocumentInCollection doc : docs) {
+            if (doc.getQuery() == query && doc.isRelevant()) {
+                relevant.add(doc);
+            }
+        }
+        return relevant;
+    }
+
 	public static void main(String[] args) {
 		if (args.length > 0) {
 			LuceneSearchApp engine = new LuceneSearchApp();
@@ -140,10 +129,11 @@ public class LuceneSearchApp {
 			
 			engine.index(docs);
 
-		    List<String> results = engine.search(Arrays.asList("game"), null, null, null);
+		    List<String> results = engine.search("game");
 			engine.printResults(results);
 		}
-		else
-			System.out.println("ERROR: the path of a XML document has to be passed as a command line argument.");
+		else {
+            System.out.println("ERROR: the path of a XML document has to be passed as a command line argument.");
+        }
 	}
 }
