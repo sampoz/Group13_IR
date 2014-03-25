@@ -16,10 +16,15 @@ public class LuceneSearchApp {
 
     private Directory directory;
 
-    private static void addDoc(IndexWriter writer, String title, String abstr) throws IOException {
+    private static void addDoc(IndexWriter writer, DocumentInCollection document) throws IOException {
         Document doc = new Document();
-        doc.add(new TextField("title", title, Field.Store.YES));
-        doc.add(new TextField("abstract", abstr, Field.Store.YES));
+        doc.add(new TextField("title", document.getTitle(), Field.Store.YES));
+        doc.add(new TextField("abstract", document.getAbstractText(), Field.Store.YES));
+        doc.add(new IntField("searchTaskNumber", document.getSearchTaskNumber(), Field.Store.YES));
+        doc.add(new TextField("query", document.getQuery(), Field.Store.YES));
+        doc.add(new IntField("relevant", document.isRelevant() ? 1 : 0, Field.Store.YES));
+        doc.add(new IntField("id", document.getId(), Field.Store.YES));
+
         writer.addDocument(doc);
     }
 
@@ -30,11 +35,11 @@ public class LuceneSearchApp {
         }
     }
 
-	public LuceneSearchApp() {
+    public LuceneSearchApp() {
 
-	}
+    }
 
-	public void index(List<DocumentInCollection> docs) {
+    public void index(List<DocumentInCollection> docs) {
         this.directory = new RAMDirectory();
         Analyzer analyzer = new StandardAnalyzer(Version.LUCENE_42);
         IndexWriterConfig config = new IndexWriterConfig(Version.LUCENE_42, analyzer);
@@ -42,16 +47,16 @@ public class LuceneSearchApp {
         try {
             IndexWriter writer = new IndexWriter(directory, config);
             for (DocumentInCollection document : docs) {
-                addDoc(writer, document.getTitle(), document.getAbstractText());
+                addDoc(writer, document);
             }
             writer.close();
         }
         catch (IOException e) {
             System.out.println("Caught IOException while creating the index : " + e.getCause());
         }
-	}
-	
-	public List<String> stemWords(List<String> words){
+    }
+
+    public List<String> stemWords(List<String> words) {
         PorterStemmer stemmer = new PorterStemmer();
         List<String> stemmed=new ArrayList<String>();
         for(String word : words){
@@ -62,13 +67,12 @@ public class LuceneSearchApp {
         return stemmed;
     }
 
-	public List<String> search(String query) {
-		
-		printQuery(query);
+    public TopDocs search(String query) {
 
-		List<String> results = new LinkedList<String>();
-        List<String> queryTermList = Arrays.asList(query.split(" "));
-        queryTermList=stemWords(queryTermList);
+        printQuery(query);
+
+        TopDocs results = null;
+        List<String> queryTermList = stemWords(Arrays.asList(query.split(" ")));
 
         try {
             // Open the directory and create a searcher to search the index
@@ -87,12 +91,7 @@ public class LuceneSearchApp {
             parseTermQuery("abstract", queryTermList, masterQuery, BooleanClause.Occur.SHOULD);
 
             // Search the index
-            TopDocs docs = searcher.search(masterQuery, Integer.MAX_VALUE);
-
-            // Extract the results
-            for (ScoreDoc document : docs.scoreDocs) {
-                results.add(reader.document(document.doc).get("title"));
-            }
+            results = searcher.search(masterQuery, Integer.MAX_VALUE);
 
             reader.close();
         }
@@ -100,26 +99,42 @@ public class LuceneSearchApp {
             System.out.println("Caught IOException while searching the index : " + e.getCause());
         }
 
-		return results;
-	}
-	
-	public void printQuery(String query) {
-		System.out.println("Search (in title or abstract): " + query);
-	}
-	
-	public void printResults(List<String> results) {
-		if (results.size() > 0) {
-			//Collections.sort(results);
-			for (int i=0; i<results.size(); i++)
-				System.out.println(" " + (i+1) + ". " + results.get(i));
-		}
-		else {
-            System.out.println(" no results");
-        }
-	}
+        return results;
+    }
 
-    public static List<DocumentInCollection> getRelevantDocumentsForQuery(
-            List<DocumentInCollection> docs, String query) {
+    public void printQuery(String query) {
+        System.out.println("Search (in title or abstract): " + query);
+    }
+
+    public void analyzeResults(List<DocumentInCollection> docs, TopDocs retrieved, String query) {
+        System.out.println("Total hits: " + retrieved.totalHits);
+        System.out.println("Maximum score: " + retrieved.getMaxScore());
+
+        if (retrieved.totalHits > 0) {
+
+            List<DocumentInCollection> relevant = getRelevantDocumentsForQuery(docs, query);
+
+            try {
+                IndexReader reader = DirectoryReader.open(directory);
+
+                System.out.println("Precision: " + getPrecision(relevant, retrieved.scoreDocs, reader));
+
+                List<Document> retrievedDocuments = new ArrayList<Document>();
+                System.out.println("Scores and titles of the retrieved documents:");
+                for (ScoreDoc sdoc : retrieved.scoreDocs) {
+                    String title = reader.document(sdoc.doc).get("title");
+                    System.out.println(sdoc.score + " : " + title);
+                }
+
+                reader.close();
+            }
+            catch (IOException e) {
+                System.out.println("Caught IOException while reading the index in printResults : " + e.getCause());
+            }
+        }
+    }
+
+    public List<DocumentInCollection> getRelevantDocumentsForQuery(List<DocumentInCollection> docs, String query) {
         List<DocumentInCollection> relevant = new ArrayList<DocumentInCollection>();
         for (DocumentInCollection doc : docs) {
             if (doc.isRelevant() && (doc.getQuery().equals(query))) {
@@ -129,31 +144,33 @@ public class LuceneSearchApp {
         return relevant;
     }
 
-    public static float getPrecision(
-            List<DocumentInCollection> docs, List<String> retrieved, String query) {
+    public float getPrecision(List<DocumentInCollection> relevant, ScoreDoc[] retrieved, IndexReader reader) {
 
-        List<DocumentInCollection> result = new ArrayList<DocumentInCollection>();
-        List<DocumentInCollection> relevant = getRelevantDocumentsForQuery(docs, query);
+        int hits = 0;
 
-        for (String title : retrieved) {
-            for (DocumentInCollection doc : relevant) {
-                if (doc.getTitle().equals(title)) {
-                    result.add(doc);
+        try {
+            for (ScoreDoc sdoc : retrieved) {
+                for (DocumentInCollection doc : relevant) {
+                    if (doc.getId() == Integer.parseInt(reader.document(sdoc.doc).get("id"))) {
+                        hits++;
+                    }
                 }
             }
+        } catch (IOException e) {
+            System.out.println("Caught IOException while reading the index in getPrecision : " + e.getCause());
         }
 
-        return ((float)result.size()) / ((float)retrieved.size());
+        return (((float)hits) / (retrieved.length));
     }
 
-	public static void main(String[] args) {
-		if (args.length > 0) {
-			LuceneSearchApp engine = new LuceneSearchApp();
+    public static void main(String[] args) {
+        if (args.length > 0) {
+            LuceneSearchApp engine = new LuceneSearchApp();
 
             // Parse the documents from the XML file
-			DocumentCollectionParser parser = new DocumentCollectionParser();
-			parser.parse(args[0]);
-			List<DocumentInCollection> docs = parser.getDocuments();
+            DocumentCollectionParser parser = new DocumentCollectionParser();
+            parser.parse(args[0]);
+            List<DocumentInCollection> docs = parser.getDocuments();
 
             // Select only the documents relevant to our subject
             for (Iterator<DocumentInCollection> i = docs.listIterator(); i.hasNext(); ) {
@@ -164,16 +181,19 @@ public class LuceneSearchApp {
             }
 
             // Index the relevant documents
-			engine.index(docs);
+            engine.index(docs);
 
+            // Form the query
             String query = "social multiplayer game";
 
-		    List<String> retrieved = engine.search(query);
-            System.out.println("Precision: " + getPrecision(docs, retrieved, query));
-            engine.printResults(retrieved);
-		}
-		else {
+            // Search the index for the documents
+            TopDocs retrieved = engine.search(query);
+
+            // Analyze the results
+            engine.analyzeResults(docs, retrieved, query);
+        }
+        else {
             System.out.println("ERROR: the path of a XML document has to be passed as a command line argument.");
         }
-	}
+    }
 }
