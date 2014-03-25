@@ -2,6 +2,8 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.*;
 import org.apache.lucene.index.*;
 import org.apache.lucene.search.*;
+import org.apache.lucene.search.similarities.BM25Similarity;
+import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.Version;
 import org.apache.lucene.store.Directory;
@@ -35,6 +37,12 @@ public class LuceneSearchApp {
         }
     }
 
+
+    public enum SimilarityType {
+        VSM_SIMILARITY, BM25_SIMILARITY
+    }
+
+
     public LuceneSearchApp() {
 
     }
@@ -67,7 +75,7 @@ public class LuceneSearchApp {
         return stemmed;
     }
 
-    public TopDocs search(String query) {
+    public TopDocs search(String query, SimilarityType similarityType) {
 
         printQuery(query);
 
@@ -79,9 +87,19 @@ public class LuceneSearchApp {
             DirectoryReader reader = DirectoryReader.open(directory);
             IndexSearcher searcher = new IndexSearcher(reader);
 
-            // Set the searcher to use our VSMSimilarity
-            VSMSimilarity vsmSimilarity = new VSMSimilarity();
-            searcher.setSimilarity(vsmSimilarity);
+            // Set the searcher to use a specific similarity type
+            switch (similarityType) {
+                case VSM_SIMILARITY:
+                    VSMSimilarity vsmSimilarity = new VSMSimilarity();
+                    searcher.setSimilarity(vsmSimilarity);
+                    break;
+                case BM25_SIMILARITY:
+                    BM25Similarity bm25Similarity = new BM25Similarity();
+                    searcher.setSimilarity(bm25Similarity);
+                    break;
+                default:
+                    break;
+            }
 
             // Create the master query
             BooleanQuery masterQuery = new BooleanQuery();
@@ -206,7 +224,7 @@ public class LuceneSearchApp {
             String query = "social multiplayer game";
 
             // 3. Search the index for the documents
-            TopDocs retrieved = engine.search(query);
+            TopDocs retrieved = engine.search(query, SimilarityType.VSM_SIMILARITY);
 
             // 4. Analyze the results
             engine.analyzeResults(docs, retrieved, query);
