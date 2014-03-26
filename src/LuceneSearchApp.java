@@ -80,7 +80,7 @@ public class LuceneSearchApp {
         printQuery(query);
 
         TopDocs results = null;
-        List<String> queryTermList = stemWords(Arrays.asList(query.split(" ")));
+        List<String> queryTermList = Arrays.asList(query.split(" "));
 
         try {
             // Open the directory and create a searcher to search the index
@@ -135,9 +135,9 @@ public class LuceneSearchApp {
 
                 // Get the relevant documents for this query and print the search precision and recall
                 List<DocumentInCollection> relevant = getRelevantDocumentsForQuery(docs, query);
-                System.out.println("Precision: " + getPrecision(relevant, retrieved, reader));
-                System.out.println("Recall: " + getRecall(relevant, retrieved, reader));
-                System.out.println("F1 score: " + getF1score(relevant, retrieved, reader));
+                System.out.println("Precision: " + getPrecision(relevant, retrieved.scoreDocs, reader));
+                System.out.println("Recall: " + getRecall(relevant, retrieved.scoreDocs, reader));
+                System.out.println("F1 score: " + getF1score(relevant, retrieved.scoreDocs, reader));
 
                 // Print the titles and individual scores of the retrieved documents
                 List<Document> retrievedDocuments = new ArrayList<Document>();
@@ -145,6 +145,32 @@ public class LuceneSearchApp {
                 for (ScoreDoc sdoc : retrieved.scoreDocs) {
                     String title = reader.document(sdoc.doc).get("title");
                     System.out.println(sdoc.score + " : " + title);
+                }
+
+                reader.close();
+            }
+            catch (IOException e) {
+                System.out.println("Caught IOException while reading the index in printResults : " + e.getCause());
+            }
+        }
+    }
+
+    public void getPRCurveData(List<DocumentInCollection> docs, TopDocs retrieved, String query) {
+        if (retrieved.totalHits > 0) {
+            try {
+                IndexReader reader = DirectoryReader.open(directory);
+
+                // Get the relevant documents for this query and print the search precision and recall
+                List<DocumentInCollection> relevant = getRelevantDocumentsForQuery(docs, query);
+
+                for (int i = 0; i < retrieved.scoreDocs.length; i++) {
+                    ScoreDoc[] array = new ScoreDoc[i+1];
+                    for (int j = 0; j <= i; j++) {
+                        array[j] = retrieved.scoreDocs[j];
+                    }
+                    float precision = getPrecision(relevant, array, reader);
+                    float recall = getRecall(relevant, array, reader);
+                    System.out.println(i + " " + precision + " " + recall);
                 }
 
                 reader.close();
@@ -165,11 +191,11 @@ public class LuceneSearchApp {
         return relevant;
     }
 
-    public int getHits(List<DocumentInCollection> relevant, TopDocs retrieved, IndexReader reader) {
+    public int getHits(List<DocumentInCollection> relevant, ScoreDoc[] retrieved, IndexReader reader) {
         int hits = 0;
 
         try {
-            for (ScoreDoc sdoc : retrieved.scoreDocs) {
+            for (ScoreDoc sdoc : retrieved) {
                 for (DocumentInCollection doc : relevant) {
                     if (doc.getId() == Integer.parseInt(reader.document(sdoc.doc).get("id"))) {
                         hits++;
@@ -183,20 +209,20 @@ public class LuceneSearchApp {
         return hits;
     }
 
-    public float getPrecision(List<DocumentInCollection> relevant, TopDocs retrieved, IndexReader reader) {
+    public float getPrecision(List<DocumentInCollection> relevant, ScoreDoc[] retrieved, IndexReader reader) {
         int hits = getHits(relevant, retrieved, reader);
-        return (((float)hits) / (retrieved.totalHits));
+        return (((float)hits) / (retrieved.length));
     }
 
-    public float getRecall(List<DocumentInCollection> relevant, TopDocs retrieved, IndexReader reader) {
+    public float getRecall(List<DocumentInCollection> relevant, ScoreDoc[] retrieved, IndexReader reader) {
         int hits = getHits(relevant, retrieved, reader);
-        return (((float)hits) / (relevant.size()));
+        return (relevant.size() == 0) ? 0 : (((float)hits) / (relevant.size()));
     }
 
-    public float getF1score(List<DocumentInCollection> relevant, TopDocs retrieved, IndexReader reader) {
+    public float getF1score(List<DocumentInCollection> relevant, ScoreDoc[] retrieved, IndexReader reader) {
         float precision = getPrecision(relevant, retrieved, reader);
         float recall = getRecall(relevant, retrieved, reader);
-        return (2*precision*recall) / (precision + recall);
+        return (precision + recall == 0) ? 0 : (2*precision*recall) / (precision + recall);
     }
 
     public static void main(String[] args) {
@@ -228,6 +254,7 @@ public class LuceneSearchApp {
 
             // 4. Analyze the results
             engine.analyzeResults(docs, retrieved, query);
+            engine.getPRCurveData(docs, retrieved, query);
         }
         else {
             System.out.println("ERROR: the path of a XML document has to be passed as a command line argument.");
