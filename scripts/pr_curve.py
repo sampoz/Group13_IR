@@ -3,17 +3,22 @@ import pylab as pl
 import numpy as np
 from sklearn.metrics import auc
 
-def find_nearest(array, value):
-    return min(range(len(array)), key=lambda i: abs(array[i]-value))
+def find_interp_value(recall_value, recall, precision):
+    recall_zipped = zip(recall, range(len(recall)))
+    more = filter(lambda x: x[0] > recall_value, recall_zipped)
+    if not more:
+        return precision[-1]
+    return max(precision[more[0][1]:])
 
-if len(sys.argv) < 2:
-    print("Invalid number of arguments, you must provide the precision-recall data file for the script.")
+if len(sys.argv) < 3:
+    print("Invalid number of arguments, you must provide the figure name and precision-recall data file for the script.")
     sys.exit()
 
 fig = pl.figure()
+fig.canvas.set_window_title(sys.argv[1])
 subplot = 311
 
-for fname in sys.argv[1:]:
+for fname in sys.argv[2:]:
     precision = []
     recall = []
 
@@ -32,10 +37,7 @@ for fname in sys.argv[1:]:
     interp_recall = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 
     for recall_level in interp_recall:
-        idx = find_nearest(recall, recall_level)
-        interp_precision.append(max(precision[idx:]))
-
-    #pl.clf()
+        interp_precision.append(find_interp_value(recall_level, recall, precision))
 
     ax = fig.add_subplot(subplot)
 
@@ -46,8 +48,6 @@ for fname in sys.argv[1:]:
     pl.ylim([0.0, 1.0])
     pl.xlim([0.0, 1.0])
     pl.title('Average precision = %f' % area)
-    #pl.legend(loc="lower left")
-    #pl.show()
 
     handles, labels = ax.get_legend_handles_labels()
     lgd = ax.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.23,-0.1))
