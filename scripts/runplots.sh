@@ -1,6 +1,6 @@
 #! /bin/bash
-data=../data/results
-us=_
+data=../data/
+mid=results
 end=.txt
-python pr_curve.py $data\1$us$1$end $data\2$us$1$end $data\3$us$1$end 
+python pr_curve.py $data$1\_$mid\0$end $data$1\_$mid\1$end $data$1\_$mid\2$end
 

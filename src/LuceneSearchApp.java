@@ -299,8 +299,6 @@ public class LuceneSearchApp {
                 //engine.analyzeResults(docs, bm25_retrieved.get(i), queries.get(i));
                 engine.getPRCurveData(docs, bm25_retrieved.get(i), queries.get(i), "data/bm25_results" + i + ".txt");
             }
-
-
         }
         else {
             System.out.println("ERROR: the path of a XML document has to be passed as a command line argument.");
