@@ -16,7 +16,9 @@ if len(sys.argv) < 3:
 
 fig = pl.figure()
 fig.canvas.set_window_title(sys.argv[1])
-subplot = 311
+subplot = 411
+
+average_interp_curve_data = []
 
 for fname in sys.argv[2:]:
     precision = []
@@ -39,14 +41,17 @@ for fname in sys.argv[2:]:
     for recall_level in interp_recall:
         interp_precision.append(find_interp_value(recall_level, recall, precision))
 
+    # Add the interp_precision data to the global array
+    average_interp_curve_data.append(interp_precision)
+
     ax = fig.add_subplot(subplot)
 
     ax.plot(recall, precision, color='b', label='Precision-Recall curve')
     ax.plot(interp_recall, interp_precision, 'k', marker='o', color='g', label="11-step Interpolated Precision-Recall curve")
     pl.xlabel('Recall')
     pl.ylabel('Precision')
-    pl.ylim([0.0, 1.0])
-    pl.xlim([0.0, 1.0])
+    pl.ylim([0.0, 1.05])
+    pl.xlim([0.0, 1.05])
     pl.title('Average precision = %f' % area)
 
     handles, labels = ax.get_legend_handles_labels()
@@ -54,6 +59,23 @@ for fname in sys.argv[2:]:
     ax.grid('on')
 
     subplot += 1
+
+zipped_data = zip(average_interp_curve_data[0], average_interp_curve_data[1], average_interp_curve_data[2])
+summed_interp_curve = [sum(item) for item in zipped_data]
+summed_interp_curve = [item/3 for item in summed_interp_curve]
+
+ax = fig.add_subplot(subplot)
+
+ax.plot(interp_recall, summed_interp_curve, 'k', marker='o', color='g', label="11-step Interpolated Precision-Recall curve")
+pl.xlabel('Recall')
+pl.ylabel('Precision')
+pl.ylim([0.0, 1.05])
+pl.xlim([0.0, 1.05])
+pl.title('Average precision = %f' % area)
+
+handles, labels = ax.get_legend_handles_labels()
+lgd = ax.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.23,-0.1))
+ax.grid('on')
 
 pl.tight_layout(pad=0.4, w_pad=0.5, h_pad=0.7)
 pl.show()
