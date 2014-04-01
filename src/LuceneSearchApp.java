@@ -3,6 +3,7 @@ import org.apache.lucene.document.*;
 import org.apache.lucene.index.*;
 import org.apache.lucene.search.*;
 import org.apache.lucene.search.similarities.BM25Similarity;
+import org.apache.lucene.search.similarities.DefaultSimilarity;
 import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.Version;
@@ -92,12 +93,10 @@ public class LuceneSearchApp {
             // Set the searcher to use a specific similarity type
             switch (similarityType) {
                 case VSM_SIMILARITY:
-                    VSMSimilarity vsmSimilarity = new VSMSimilarity();
-                    searcher.setSimilarity(vsmSimilarity);
+                    searcher.setSimilarity(new DefaultSimilarity());
                     break;
                 case BM25_SIMILARITY:
-                    BM25Similarity bm25Similarity = new BM25Similarity();
-                    searcher.setSimilarity(bm25Similarity);
+                    searcher.setSimilarity(new BM25Similarity());
                     break;
                 default:
                     break;
@@ -247,25 +246,30 @@ public class LuceneSearchApp {
             // 1. Index the relevant documents
             engine.index(docs);
 
-            // 2. Form the query
-            String query1 = "social multiplayer game";
-            String query2 = "online gaming group competition";
-            String query3 = "online gaming behaviour characteristics";
+            // 2. Form the queries
+            List<String> queries = new ArrayList<String>();
+            queries.add("social multiplayer game");
+            queries.add("online gaming group competition");
+            queries.add("online gaming behaviour characteristics");
 
             // 3. Search the index for the documents
-            TopDocs retrieved1 = engine.search(query1, SimilarityType.VSM_SIMILARITY);
-            TopDocs retrieved2 = engine.search(query2, SimilarityType.VSM_SIMILARITY);
-            TopDocs retrieved3 = engine.search(query3, SimilarityType.VSM_SIMILARITY);
+            List<TopDocs> vsm_retrieved = new ArrayList<TopDocs>();
+            List<TopDocs> bm25_retrieved = new ArrayList<TopDocs>();
+
+            for (String query : queries) {
+                vsm_retrieved.add(engine.search(query, SimilarityType.VSM_SIMILARITY));
+                bm25_retrieved.add(engine.search(query, SimilarityType.BM25_SIMILARITY));
+            }
 
             // 4. Analyze the results
-            engine.analyzeResults(docs, retrieved1, query1);
-            engine.getPRCurveData(docs, retrieved1, query1, "data/results1.txt");
+            for (int i = 0; i < queries.size(); i++) {
+                //engine.analyzeResults(docs, vsm_retrieved.get(i), queries.get(i));
+                engine.getPRCurveData(docs, vsm_retrieved.get(i), queries.get(i), "data/vsm_results" + i + ".txt");
+                //engine.analyzeResults(docs, bm25_retrieved.get(i), queries.get(i));
+                engine.getPRCurveData(docs, bm25_retrieved.get(i), queries.get(i), "data/bm25_results" + i + ".txt");
+            }
 
-            engine.analyzeResults(docs, retrieved2, query2);
-            engine.getPRCurveData(docs, retrieved2, query2, "data/results2.txt");
 
-            engine.analyzeResults(docs, retrieved3, query3);
-            engine.getPRCurveData(docs, retrieved3, query3, "data/results3.txt");
         }
         else {
             System.out.println("ERROR: the path of a XML document has to be passed as a command line argument.");
