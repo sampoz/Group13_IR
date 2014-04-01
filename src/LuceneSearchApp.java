@@ -248,14 +248,24 @@ public class LuceneSearchApp {
             engine.index(docs);
 
             // 2. Form the query
-            String query = "social multiplayer game";
+            String query1 = "social multiplayer game";
+            String query2 = "online gaming group competition";
+            String query3 = "online gaming behaviour characteristics";
 
             // 3. Search the index for the documents
-            TopDocs retrieved = engine.search(query, SimilarityType.VSM_SIMILARITY);
+            TopDocs retrieved1 = engine.search(query1, SimilarityType.VSM_SIMILARITY);
+            TopDocs retrieved2 = engine.search(query2, SimilarityType.VSM_SIMILARITY);
+            TopDocs retrieved3 = engine.search(query3, SimilarityType.VSM_SIMILARITY);
 
             // 4. Analyze the results
-            engine.analyzeResults(docs, retrieved, query);
-            engine.getPRCurveData(docs, retrieved, query, "data/results.txt");
+            engine.analyzeResults(docs, retrieved1, query1);
+            engine.getPRCurveData(docs, retrieved1, query1, "data/results1.txt");
+
+            engine.analyzeResults(docs, retrieved2, query2);
+            engine.getPRCurveData(docs, retrieved2, query2, "data/results2.txt");
+
+            engine.analyzeResults(docs, retrieved3, query3);
+            engine.getPRCurveData(docs, retrieved3, query3, "data/results3.txt");
         }
         else {
             System.out.println("ERROR: the path of a XML document has to be passed as a command line argument.");
