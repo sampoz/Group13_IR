@@ -50,7 +50,8 @@ public class LuceneSearchApp {
 
     public void index(List<DocumentInCollection> docs) {
         this.directory = new RAMDirectory();
-        Analyzer analyzer = new StandardAnalyzer(Version.LUCENE_42);
+        //Analyzer analyzer = new StandardAnalyzer(Version.LUCENE_42); // uncomment this and comment porterstemmer, if you want stop stemming
+        Analyzer analyzer = new PorterStemmerAnalyzer();
         IndexWriterConfig config = new IndexWriterConfig(Version.LUCENE_42, analyzer);
 
         try {
