@@ -1,9 +1,6 @@
 import sys
-import random
 import pylab as pl
 import numpy as np
-from sklearn import svm, datasets
-from sklearn.metrics import precision_recall_curve
 from sklearn.metrics import auc
 
 if len(sys.argv) < 2:
@@ -23,7 +20,6 @@ with open(fname) as info:
 
 # Compute Precision-Recall and plot curve
 area = auc(recall, precision)
-print("Area Under Curve: %0.2f" % area)
 
 pl.clf()
 pl.plot(recall, precision, label='Precision-Recall curve')
