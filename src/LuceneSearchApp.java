@@ -41,7 +41,8 @@ public class LuceneSearchApp {
 
 
     public enum SimilarityType {
-        VSM_SIMILARITY, BM25_SIMILARITY
+        VSM_SIMILARITY,
+        BM25_SIMILARITY
     }
 
 
@@ -83,7 +84,7 @@ public class LuceneSearchApp {
         printQuery(query);
 
         TopDocs results = null;
-        List<String> queryTermList = Arrays.asList(query.split(" "));
+        List<String> queryTermList = stemWords(Arrays.asList(query.split(" ")));
 
         try {
             // Open the directory and create a searcher to search the index
@@ -138,8 +139,8 @@ public class LuceneSearchApp {
                 List<DocumentInCollection> relevant = getRelevantDocumentsForQuery(docs, query, 18);
                 int hits = getHits(relevant, retrieved.scoreDocs, reader);
                 System.out.println("Relevant hits: " + hits);
-                System.out.println("Precision: " + getPrecision(relevant, retrieved.scoreDocs, hits));
-                System.out.println("Recall: " + getRecall(relevant, retrieved.scoreDocs, hits));
+                System.out.println("Precision: " + getPrecision(retrieved.scoreDocs, hits));
+                System.out.println("Recall: " + getRecall(relevant, hits));
                 System.out.println("F1 score: " + getF1score(relevant, retrieved.scoreDocs, reader));
 
                 // Print the titles and individual scores of the retrieved documents
@@ -170,13 +171,16 @@ public class LuceneSearchApp {
                 List<DocumentInCollection> relevant = getRelevantDocumentsForQuery(docs, query, 18);
 
                 System.out.println("Writing the precision-recall data.."); // DEBUG
+                List<ScoreDoc> scoreDocs = new ArrayList<ScoreDoc>();
+                int hits = 0;
                 for (int i = 0; i < retrieved.scoreDocs.length; i++) {
-                    ScoreDoc[] array = new ScoreDoc[i+1];
-                    System.arraycopy(retrieved.scoreDocs, 0, array, 0, i+1);
-                    int hits = getHits(relevant, array, reader);
-                    float precision = getPrecision(relevant, array, hits);
-                    float recall = getRecall(relevant, array, hits);
-                    file.write(i + " " + precision + " " + recall + "\n"); // DEBUG
+                    scoreDocs.add(retrieved.scoreDocs[i]);
+                    if (isHit(relevant, Integer.parseInt(reader.document(retrieved.scoreDocs[i].doc).get("id")))) {
+                        hits++;
+                    }
+                    float precision = getPrecision(scoreDocs, hits);
+                    float recall = getRecall(relevant, hits);
+                    file.write(i + " " + precision + " " + recall + "\n");
                 }
 
                 System.out.println("Data writing finished successfully.."); // DEBUG
@@ -200,15 +204,22 @@ public class LuceneSearchApp {
         return relevant;
     }
 
+    public boolean isHit(List<DocumentInCollection> relevant, int id) {
+        for (DocumentInCollection doc : relevant) {
+            if (doc.getId() == id) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public int getHits(List<DocumentInCollection> relevant, ScoreDoc[] retrieved, IndexReader reader) {
         int hits = 0;
 
         try {
             for (ScoreDoc sdoc : retrieved) {
-                for (DocumentInCollection doc : relevant) {
-                    if (doc.getId() == Integer.parseInt(reader.document(sdoc.doc).get("id"))) {
-                        hits++;
-                    }
+                if (isHit(relevant, Integer.parseInt(reader.document(sdoc.doc).get("id")))) {
+                    hits++;
                 }
             }
         } catch (IOException e) {
@@ -218,18 +229,38 @@ public class LuceneSearchApp {
         return hits;
     }
 
-    public float getPrecision(List<DocumentInCollection> relevant, ScoreDoc[] retrieved, int hits) {
+    public int getHits(List<DocumentInCollection> relevant, List<ScoreDoc> retrieved, IndexReader reader) {
+        int hits = 0;
+
+        try {
+            for (ScoreDoc sdoc : retrieved) {
+                if (isHit(relevant, Integer.parseInt(reader.document(sdoc.doc).get("id")))) {
+                    hits++;
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("Caught IOException while reading the index in getPrecision : " + e.getCause());
+        }
+
+        return hits;
+    }
+
+    public float getPrecision(ScoreDoc[] retrieved, int hits) {
         return (((float)hits) / (retrieved.length));
     }
 
-    public float getRecall(List<DocumentInCollection> relevant, ScoreDoc[] retrieved, int hits) {
+    public float getPrecision(List<ScoreDoc> retrieved, int hits) {
+        return (((float)hits) / (retrieved.size()));
+    }
+
+    public float getRecall(List<DocumentInCollection> relevant, int hits) {
         return (relevant.size() == 0) ? 0 : (((float)hits) / (relevant.size()));
     }
 
     public float getF1score(List<DocumentInCollection> relevant, ScoreDoc[] retrieved, IndexReader reader) {
         int hits = getHits(relevant, retrieved, reader);
-        float precision = getPrecision(relevant, retrieved, hits);
-        float recall = getRecall(relevant, retrieved, hits);
+        float precision = getPrecision(retrieved, hits);
+        float recall = getRecall(relevant, hits);
         return (precision + recall == 0) ? 0 : (2*precision*recall) / (precision + recall);
     }
 
