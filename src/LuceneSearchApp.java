@@ -1,10 +1,8 @@
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.*;
 import org.apache.lucene.index.*;
 import org.apache.lucene.search.*;
 import org.apache.lucene.search.similarities.BM25Similarity;
 import org.apache.lucene.search.similarities.DefaultSimilarity;
-import org.apache.lucene.search.similarities.Similarity;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.Version;
 import org.apache.lucene.store.Directory;
@@ -79,12 +77,19 @@ public class LuceneSearchApp {
         return stemmed;
     }
 
-    public TopDocs search(String query, SimilarityType similarityType) {
+    public TopDocs search(String query, SimilarityType similarityType, boolean stemmed) {
 
         printQuery(query);
 
         TopDocs results = null;
-        List<String> queryTermList = stemWords(Arrays.asList(query.split(" ")));
+        List<String> queryTermList = null;
+
+        if (stemmed) {
+            queryTermList = stemWords(Arrays.asList(query.split(" ")));
+        }
+        else {
+            queryTermList = Arrays.asList(query.split(" "));
+        }
 
         try {
             // Open the directory and create a searcher to search the index
@@ -284,12 +289,17 @@ public class LuceneSearchApp {
             queries.add("online gaming behaviour characteristics");
 
             // 3. Search the index for the documents
+            List<TopDocs> vsm_stemmed_retrieved = new ArrayList<TopDocs>();
+            List<TopDocs> bm25_stemmed_retrieved = new ArrayList<TopDocs>();
             List<TopDocs> vsm_retrieved = new ArrayList<TopDocs>();
             List<TopDocs> bm25_retrieved = new ArrayList<TopDocs>();
 
+
             for (String query : queries) {
-                vsm_retrieved.add(engine.search(query, SimilarityType.VSM_SIMILARITY));
-                bm25_retrieved.add(engine.search(query, SimilarityType.BM25_SIMILARITY));
+                vsm_stemmed_retrieved.add(engine.search(query, SimilarityType.VSM_SIMILARITY, true));
+                vsm_retrieved.add(engine.search(query, SimilarityType.VSM_SIMILARITY, false));
+                bm25_stemmed_retrieved.add(engine.search(query, SimilarityType.BM25_SIMILARITY, true));
+                bm25_retrieved.add(engine.search(query, SimilarityType.BM25_SIMILARITY, false));
             }
 
             // 4. Analyze the results
@@ -298,6 +308,11 @@ public class LuceneSearchApp {
                 engine.getPRCurveData(docs, vsm_retrieved.get(i), queries.get(i), "data/vsm_results" + i + ".txt");
                 //engine.analyzeResults(docs, bm25_retrieved.get(i), queries.get(i));
                 engine.getPRCurveData(docs, bm25_retrieved.get(i), queries.get(i), "data/bm25_results" + i + ".txt");
+
+                //engine.analyzeResults(docs, vsm_stemmed_retrieved.get(i), queries.get(i));
+                engine.getPRCurveData(docs, vsm_stemmed_retrieved.get(i), queries.get(i), "data/vsm_stemmed_results" + i + ".txt");
+                //engine.analyzeResults(docs, bm25_stemmed_retrieved.get(i), queries.get(i));
+                engine.getPRCurveData(docs, bm25_stemmed_retrieved.get(i), queries.get(i), "data/bm25_stemmed_results" + i + ".txt");
             }
         }
         else {
