@@ -1,3 +1,4 @@
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.*;
 import org.apache.lucene.index.*;
 import org.apache.lucene.search.*;
@@ -48,10 +49,9 @@ public class LuceneSearchApp {
 
     }
 
-    public void index(List<DocumentInCollection> docs) {
+    public void index(List<DocumentInCollection> docs, boolean stemmed) {
         this.directory = new RAMDirectory();
-        //Analyzer analyzer = new StandardAnalyzer(Version.LUCENE_42); // uncomment this and comment porterstemmer, if you want stop stemming
-        Analyzer analyzer = new PorterStemmerAnalyzer();
+        Analyzer analyzer = stemmed ? new PorterStemmerAnalyzer() : new StandardAnalyzer(Version.LUCENE_42);
         IndexWriterConfig config = new IndexWriterConfig(Version.LUCENE_42, analyzer);
 
         try {
@@ -68,7 +68,7 @@ public class LuceneSearchApp {
 
     public List<String> stemWords(List<String> words) {
         PorterStemmer stemmer = new PorterStemmer();
-        List<String> stemmed=new ArrayList<String>();
+        List<String> stemmed = new ArrayList<String>();
         for(String word : words){
             stemmer.setCurrent(word);
             stemmer.stem();
@@ -82,14 +82,7 @@ public class LuceneSearchApp {
         printQuery(query);
 
         TopDocs results = null;
-        List<String> queryTermList = null;
-
-        if (stemmed) {
-            queryTermList = stemWords(Arrays.asList(query.split(" ")));
-        }
-        else {
-            queryTermList = Arrays.asList(query.split(" "));
-        }
+        List<String> queryTermList = stemmed ? stemWords(Arrays.asList(query.split(" "))) : Arrays.asList(query.split(" "));
 
         try {
             // Open the directory and create a searcher to search the index
@@ -272,6 +265,7 @@ public class LuceneSearchApp {
     public static void main(String[] args) {
         if (args.length > 0) {
             LuceneSearchApp engine = new LuceneSearchApp();
+            LuceneSearchApp engine_stemmed = new LuceneSearchApp();
 
             // Parse the documents from the XML file
             DocumentCollectionParser parser = new DocumentCollectionParser();
@@ -279,8 +273,9 @@ public class LuceneSearchApp {
             List<DocumentInCollection> docs = parser.getDocuments();
 
             // 4 steps to victory
-            // 1. Index the relevant documents
-            engine.index(docs);
+            // 1. Index the relevant documents without stemming
+            engine.index(docs, false);
+            engine_stemmed.index(docs, true);
 
             // 2. Form the queries
             List<String> queries = new ArrayList<String>();
@@ -288,30 +283,31 @@ public class LuceneSearchApp {
             queries.add("online gaming group competition");
             queries.add("online gaming behaviour characteristics");
 
-            // 3. Search the index for the documents
-            List<TopDocs> vsm_stemmed_retrieved = new ArrayList<TopDocs>();
-            List<TopDocs> bm25_stemmed_retrieved = new ArrayList<TopDocs>();
+            // 3. Search the index for the documents without stemming
+            //    Search the index for the documents with stemming
             List<TopDocs> vsm_retrieved = new ArrayList<TopDocs>();
             List<TopDocs> bm25_retrieved = new ArrayList<TopDocs>();
-
+            List<TopDocs> vsm_stemmed_retrieved = new ArrayList<TopDocs>();
+            List<TopDocs> bm25_stemmed_retrieved = new ArrayList<TopDocs>();
 
             for (String query : queries) {
-                vsm_stemmed_retrieved.add(engine.search(query, SimilarityType.VSM_SIMILARITY, true));
                 vsm_retrieved.add(engine.search(query, SimilarityType.VSM_SIMILARITY, false));
-                bm25_stemmed_retrieved.add(engine.search(query, SimilarityType.BM25_SIMILARITY, true));
                 bm25_retrieved.add(engine.search(query, SimilarityType.BM25_SIMILARITY, false));
+                vsm_stemmed_retrieved.add(engine_stemmed.search(query, SimilarityType.VSM_SIMILARITY, true));
+                bm25_stemmed_retrieved.add(engine_stemmed.search(query, SimilarityType.BM25_SIMILARITY, true));
             }
+
 
             // 4. Analyze the results
             for (int i = 0; i < queries.size(); i++) {
-                //engine.analyzeResults(docs, vsm_retrieved.get(i), queries.get(i));
+                engine.analyzeResults(docs, vsm_retrieved.get(i), queries.get(i));
                 engine.getPRCurveData(docs, vsm_retrieved.get(i), queries.get(i), "data/vsm_results" + i + ".txt");
-                //engine.analyzeResults(docs, bm25_retrieved.get(i), queries.get(i));
+                engine.analyzeResults(docs, bm25_retrieved.get(i), queries.get(i));
                 engine.getPRCurveData(docs, bm25_retrieved.get(i), queries.get(i), "data/bm25_results" + i + ".txt");
 
-                //engine.analyzeResults(docs, vsm_stemmed_retrieved.get(i), queries.get(i));
+                engine.analyzeResults(docs, vsm_stemmed_retrieved.get(i), queries.get(i));
                 engine.getPRCurveData(docs, vsm_stemmed_retrieved.get(i), queries.get(i), "data/vsm_stemmed_results" + i + ".txt");
-                //engine.analyzeResults(docs, bm25_stemmed_retrieved.get(i), queries.get(i));
+                engine.analyzeResults(docs, bm25_stemmed_retrieved.get(i), queries.get(i));
                 engine.getPRCurveData(docs, bm25_stemmed_retrieved.get(i), queries.get(i), "data/bm25_stemmed_results" + i + ".txt");
             }
         }
