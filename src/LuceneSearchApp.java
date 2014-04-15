@@ -74,6 +74,7 @@ public class LuceneSearchApp {
             stemmer.stem();
             stemmed.add(stemmer.getCurrent());
         }
+        System.out.println(stemmed);
         return stemmed;
     }
 
@@ -300,13 +301,17 @@ public class LuceneSearchApp {
 
             // 4. Analyze the results
             for (int i = 0; i < queries.size(); i++) {
+                System.out.println("VSM without stemming, query: " + queries.get(i));
                 engine.analyzeResults(docs, vsm_retrieved.get(i), queries.get(i));
                 engine.getPRCurveData(docs, vsm_retrieved.get(i), queries.get(i), "data/vsm_results" + i + ".txt");
+                System.out.println("BM25 without stemming, query: " + queries.get(i));
                 engine.analyzeResults(docs, bm25_retrieved.get(i), queries.get(i));
                 engine.getPRCurveData(docs, bm25_retrieved.get(i), queries.get(i), "data/bm25_results" + i + ".txt");
 
+                System.out.println("VSM with stemming, query: " + queries.get(i));
                 engine.analyzeResults(docs, vsm_stemmed_retrieved.get(i), queries.get(i));
                 engine.getPRCurveData(docs, vsm_stemmed_retrieved.get(i), queries.get(i), "data/vsm_stemmed_results" + i + ".txt");
+                System.out.println("BM25 with stemming, query: " + queries.get(i));
                 engine.analyzeResults(docs, bm25_stemmed_retrieved.get(i), queries.get(i));
                 engine.getPRCurveData(docs, bm25_stemmed_retrieved.get(i), queries.get(i), "data/bm25_stemmed_results" + i + ".txt");
             }
